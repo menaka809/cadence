@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ArrowRight, Loader2 } from "lucide-react";
 import TempoBar from "./TempoBar";
+import Magnetic from "./Magnetic";
 
 const schema = z.object({
   email: z
@@ -114,20 +115,22 @@ export default function WaitlistCTA() {
                         }`}
                       />
                     </div>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-70"
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          Join
-                          <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
-                    </button>
+                    <Magnetic>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-70"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            Join
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
+                      </button>
+                    </Magnetic>
                   </div>
                   <AnimatePresence>
                     {errors.email && (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
+import ScrollProgress from "@/components/ScrollProgress";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <SmoothScroll>
+          <ScrollProgress />
           <Navbar />
           <main>{children}</main>
           <Footer />

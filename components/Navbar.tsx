@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import TempoBar from "./TempoBar";
+import Magnetic from "./Magnetic";
 import { useLenis } from "./SmoothScroll";
 
 const LINKS = [
@@ -95,13 +96,15 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <a
-              href="#waitlist"
-              onClick={go("#waitlist")}
-              className="hidden rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg transition-transform hover:scale-[1.03] active:scale-95 md:block"
-            >
-              Join waitlist
-            </a>
+            <Magnetic className="hidden md:block">
+              <a
+                href="#waitlist"
+                onClick={go("#waitlist")}
+                className="block rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg transition-transform hover:scale-[1.03] active:scale-95"
+              >
+                Join waitlist
+              </a>
+            </Magnetic>
 
             {/* Mobile hamburger */}
             <button

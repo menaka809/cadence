@@ -12,15 +12,20 @@ function MockShell({
   children: React.ReactNode;
   label: string;
 }) {
+  // Every phase mock is an identical app-window frame: same fixed width AND
+  // height. The body flexes to fill, so content differences never change the
+  // card's size — like real screens in the Cadence app.
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-surface/80 p-1.5 shadow-2xl shadow-black/40 backdrop-blur">
-      <div className="flex items-center gap-1.5 px-3 py-2.5">
+    <div className="flex h-[340px] w-full max-w-md flex-col rounded-2xl border border-border bg-surface/80 p-1.5 shadow-2xl shadow-black/40 backdrop-blur">
+      <div className="flex shrink-0 items-center gap-1.5 px-3 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#2a2a32]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#2a2a32]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#2a2a32]" />
         <span className="ml-2 text-[11px] text-text-muted">{label}</span>
       </div>
-      <div className="rounded-xl bg-bg/60 p-5">{children}</div>
+      <div className="flex flex-1 flex-col justify-center overflow-hidden rounded-xl bg-bg/60 p-5">
+        {children}
+      </div>
     </div>
   );
 }

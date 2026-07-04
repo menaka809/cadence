@@ -134,9 +134,9 @@ export default function Pricing() {
                   delay: i * 0.09,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-accent/50 sm:p-7 ${
+                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent/50 sm:p-7 ${
                   isSelected
-                    ? "border-accent/40 bg-surface"
+                    ? "z-10 border-accent/50 bg-surface shadow-[0_16px_50px_-16px_rgba(198,255,61,0.28)] md:scale-[1.025]"
                     : "border-border bg-surface/40 hover:border-text-muted/30"
                 }`}
               >

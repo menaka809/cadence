@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { useLenis } from "./SmoothScroll";
 import {
@@ -49,7 +50,8 @@ export default function FlowTimeline() {
   // used to compute where to jump when a stepper dot is clicked.
   const mainStRef = useRef<ScrollTrigger | null>(null);
   const panelElsRef = useRef<HTMLElement[]>([]);
-  const [active, setActive] = useState(0);
+  // -1 = the intro panel is centered (no phase yet); 0..n = that phase.
+  const [active, setActive] = useState(-1);
   // Default to the stacked layout so SSR and the first client render match
   // (no hydration mismatch) and small screens never flash the horizontal
   // track. Upgraded to "horizontal" on tablet/desktop with motion allowed.
@@ -121,6 +123,21 @@ export default function FlowTimeline() {
         },
       });
       mainStRef.current = tween.scrollTrigger ?? null;
+
+      // Reset the tracker to its intro state whenever the intro is centered,
+      // so it doesn't claim "Morning" before the Morning card enters.
+      const intro = section.querySelector<HTMLElement>("[data-intro]");
+      if (intro) {
+        ScrollTrigger.create({
+          trigger: intro,
+          containerAnimation: tween,
+          start: "left center",
+          end: "right center",
+          onToggle: (self) => {
+            if (self.isActive) setActive(-1);
+          },
+        });
+      }
 
       // Per-panel clip-path reveal, driven by the horizontal container animation.
       const panels = gsap.utils.toArray<HTMLElement>("[data-panel]");
@@ -206,6 +223,7 @@ export default function FlowTimeline() {
             paddingLeft matches the site's centered container gutter so the
             heading lines up with the other sections. */}
         <div
+          data-intro
           className="flex h-full w-[74vw] flex-shrink-0 flex-col justify-center pr-6 lg:w-[70vw]"
           style={{ paddingLeft: "max(1.5rem, calc((100vw - 64rem) / 2))" }}
         >
@@ -223,11 +241,16 @@ export default function FlowTimeline() {
               {/* Pulse divider between phases */}
               {i > 0 && <PulseDivider />}
 
-              <div className="grid w-full items-center gap-8 lg:grid-cols-2 lg:gap-10">
-                <div data-reveal>
+              {/* Centered label + mock group so they sit close together
+                  instead of being pushed to opposite edges of a wide panel. */}
+              <div className="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
+                <div data-reveal className="w-full lg:w-auto lg:shrink-0">
                   <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
                 </div>
-                <div data-reveal className="flex justify-center lg:justify-end">
+                <div
+                  data-reveal
+                  className="flex w-full justify-center lg:w-[27rem] lg:shrink-0"
+                >
                   <Mock />
                 </div>
               </div>
@@ -255,28 +278,44 @@ function PhaseTracker({
   active: number;
   onJump: (i: number) => void;
 }) {
+  const isIntro = active < 0;
   const current = PHASES[active];
   return (
     <div className="pointer-events-none absolute bottom-7 left-1/2 z-10 w-[min(92vw,340px)] -translate-x-1/2">
       <div className="rounded-2xl border border-border bg-surface/70 px-6 py-4 backdrop-blur-xl">
-        {/* Active phase readout */}
+        {/* Active phase readout (intro state until the first phase centers) */}
         <div className="mb-3 flex items-center justify-center gap-2.5 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
-              key={current.key}
+              key={isIntro ? "intro" : current.key}
               initial={{ y: 12, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -12, opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className="flex items-center gap-2.5"
             >
-              <span className="font-display text-sm tabular-nums text-accent">
-                {current.time}
-              </span>
-              <span className="h-1 w-1 rounded-full bg-text-muted/50" />
-              <span className="font-display text-sm font-medium text-text-primary">
-                {current.title}
-              </span>
+              {isIntro ? (
+                <span className="flex items-center gap-2.5">
+                  <span className="font-display text-sm font-medium text-text-muted">
+                    A day in Cadence
+                  </span>
+                  <span className="relative flex h-5 w-8 items-center overflow-hidden rounded-full bg-accent/15">
+                    <span className="animate-nudge-x flex w-full items-center justify-center text-accent">
+                      <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </span>
+                  </span>
+                </span>
+              ) : (
+                <>
+                  <span className="font-display text-sm tabular-nums text-accent">
+                    {current.time}
+                  </span>
+                  <span className="h-1 w-1 rounded-full bg-text-muted/50" />
+                  <span className="font-display text-sm font-medium text-text-primary">
+                    {current.title}
+                  </span>
+                </>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

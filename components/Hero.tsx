@@ -3,6 +3,7 @@
 import { motion, type Variants } from "framer-motion";
 import { ArrowDown } from "lucide-react";
 import TempoBar from "./TempoBar";
+import Magnetic from "./Magnetic";
 import { useLenis } from "./SmoothScroll";
 
 const LINE_ONE = ["Work", "in", "rhythm,"];
@@ -91,12 +92,14 @@ export default function Hero() {
           variants={fade}
           className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
         >
-          <button
-            onClick={() => scrollTo("#waitlist", { offset: -40 })}
-            className="rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95"
-          >
-            Join the waitlist
-          </button>
+          <Magnetic>
+            <button
+              onClick={() => scrollTo("#waitlist", { offset: -40 })}
+              className="rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95"
+            >
+              Join the waitlist
+            </button>
+          </Magnetic>
           <button
             onClick={() => scrollTo("#flow", { offset: -20 })}
             className="rounded-full border border-border bg-surface/40 px-7 py-3.5 text-sm font-medium text-text-primary backdrop-blur-sm transition-colors hover:border-text-muted/40"
