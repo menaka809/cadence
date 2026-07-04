@@ -47,13 +47,13 @@ export default function Problem() {
   const highlight = new Set(["Cadence", "beat", "focus"]);
 
   return (
-    <section id="problem" className="relative px-6 py-32 md:py-44">
+    <section id="problem" className="relative px-5 py-24 sm:px-6 sm:py-32 md:py-44">
       <div ref={rootRef} className="mx-auto max-w-4xl">
-        <p className="mb-10 flex items-center gap-3 text-sm font-medium uppercase tracking-[0.2em] text-accent">
+        <p className="mb-8 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-10 sm:text-sm">
           <span className="h-px w-8 bg-accent/50" />
           The problem
         </p>
-        <p className="font-display text-3xl font-medium leading-[1.35] tracking-tight text-text-primary sm:text-4xl md:text-[2.75rem] md:leading-[1.3]">
+        <p className="font-display text-[1.75rem] font-medium leading-snug tracking-tight text-text-primary sm:text-4xl sm:leading-[1.35] md:text-[2.75rem] md:leading-[1.3]">
           {TEXT.split(" ").map((w, i) => {
             const clean = w.replace(/[^a-zA-Z]/g, "");
             return (

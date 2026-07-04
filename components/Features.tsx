@@ -33,19 +33,19 @@ const FEATURES: {
 
 export default function Features() {
   return (
-    <section id="features" className="relative px-6 py-28 md:py-36">
+    <section id="features" className="relative px-5 py-20 sm:px-6 sm:py-28 md:py-36">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-16 max-w-2xl">
-          <p className="mb-5 flex items-center gap-3 text-sm font-medium uppercase tracking-[0.2em] text-accent">
+        <div className="mb-10 max-w-2xl sm:mb-16">
+          <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
             <span className="h-px w-8 bg-accent/50" />
             Features
           </p>
-          <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight text-text-primary sm:text-5xl">
+          <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight text-text-primary sm:text-4xl md:text-5xl">
             Built to keep your beat.
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3">
           {FEATURES.map((f, i) => (
             <MagneticCard key={f.title} feature={f} index={i} />
           ))}

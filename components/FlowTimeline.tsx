@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { gsap, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { useLenis } from "./SmoothScroll";
 import {
   MorningMock,
   DeepWorkMock,
@@ -43,14 +45,59 @@ const PHASES = [
 export default function FlowTimeline() {
   const sectionRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  // The main pinned ScrollTrigger (real page-scroll coords) + panel elements,
+  // used to compute where to jump when a stepper dot is clicked.
+  const mainStRef = useRef<ScrollTrigger | null>(null);
+  const panelElsRef = useRef<HTMLElement[]>([]);
   const [active, setActive] = useState(0);
-  const [reduced, setReduced] = useState(false);
+  // Default to the stacked layout so SSR and the first client render match
+  // (no hydration mismatch) and small screens never flash the horizontal
+  // track. Upgraded to "horizontal" on tablet/desktop with motion allowed.
+  const [mode, setMode] = useState<"stacked" | "horizontal">("stacked");
+  const { scrollTo } = useLenis();
 
+  // Scroll so the clicked phase sits centered within the pinned timeline.
+  // The horizontal translate maps linearly to the pin's scroll range, so we
+  // convert the panel's centered position into a page-scroll offset.
+  const jumpToPhase = (i: number) => {
+    const st = mainStRef.current;
+    const panel = panelElsRef.current[i];
+    const track = trackRef.current;
+    if (!st || !panel || !track) return;
+
+    const distance = track.scrollWidth - window.innerWidth;
+    if (distance <= 0) return;
+
+    // offsetLeft ignores the live transform, giving the panel's layout x.
+    const panelCenter = panel.offsetLeft + panel.offsetWidth / 2;
+    const progress = Math.min(
+      1,
+      Math.max(0, (panelCenter - window.innerWidth / 2) / distance)
+    );
+    scrollTo(st.start + progress * (st.end - st.start));
+  };
+
+  // Choose the layout from viewport size + motion preference, and keep it in
+  // sync on resize / orientation change. The scroll-jack needs both enough
+  // width and enough height, so landscape phones fall back to the stack.
   useEffect(() => {
-    if (prefersReducedMotion()) {
-      setReduced(true);
-      return;
-    }
+    const sizeMq = window.matchMedia("(min-width: 768px) and (min-height: 600px)");
+    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () =>
+      setMode(sizeMq.matches && !motionMq.matches ? "horizontal" : "stacked");
+    update();
+    sizeMq.addEventListener("change", update);
+    motionMq.addEventListener("change", update);
+    return () => {
+      sizeMq.removeEventListener("change", update);
+      motionMq.removeEventListener("change", update);
+    };
+  }, []);
+
+  // Horizontal scroll-jack — wired up only in horizontal mode, torn down
+  // cleanly when switching to the stack.
+  useEffect(() => {
+    if (mode !== "horizontal") return;
 
     const section = sectionRef.current;
     const track = trackRef.current;
@@ -71,19 +118,26 @@ export default function FlowTimeline() {
           scrub: 1,
           anticipatePin: 1,
           invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            const idx = Math.min(
-              PHASES.length - 1,
-              Math.round(self.progress * (PHASES.length - 1))
-            );
-            setActive(idx);
-          },
         },
       });
+      mainStRef.current = tween.scrollTrigger ?? null;
 
       // Per-panel clip-path reveal, driven by the horizontal container animation.
       const panels = gsap.utils.toArray<HTMLElement>("[data-panel]");
-      panels.forEach((panel) => {
+      panelElsRef.current = panels;
+      panels.forEach((panel, i) => {
+        // Drive the phase tracker off the panel that's actually centered,
+        // so it can't say "Morning" while the intro is still on screen.
+        ScrollTrigger.create({
+          trigger: panel,
+          containerAnimation: tween,
+          start: "left center",
+          end: "right center",
+          onToggle: (self) => {
+            if (self.isActive) setActive(i);
+          },
+        });
+
         const reveal = panel.querySelectorAll<HTMLElement>("[data-reveal]");
         gsap.set(reveal, {
           clipPath: "inset(0 100% 0 0)",
@@ -107,22 +161,26 @@ export default function FlowTimeline() {
       });
     }, section);
 
-    return () => ctx.revert();
-  }, []);
+    return () => {
+      ctx.revert();
+      mainStRef.current = null;
+      panelElsRef.current = [];
+    };
+  }, [mode]);
 
-  // ---- Reduced-motion / fallback: a clean vertical stack, no scroll-jack ----
-  if (reduced) {
+  // ---- Mobile / short / reduced-motion: a clean vertical stack ----
+  if (mode === "stacked") {
     return (
-      <section id="flow" className="px-6 py-28">
-        <FlowHeader />
-        <div className="mx-auto mt-14 grid max-w-5xl gap-8 md:grid-cols-2">
+      <section id="flow" className="px-5 py-20 sm:px-6 sm:py-28">
+        <FlowHeader stacked />
+        <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:mt-14 sm:gap-8 md:grid-cols-2">
           {PHASES.map((p) => (
             <div
               key={p.key}
-              className="rounded-2xl border border-border bg-surface/40 p-8"
+              className="rounded-2xl border border-border bg-surface/40 p-6 sm:p-8"
             >
               <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
-              <div className="mt-8 flex justify-center">
+              <div className="mt-7 flex justify-center sm:mt-8">
                 <p.Mock />
               </div>
             </div>
@@ -143,8 +201,14 @@ export default function FlowTimeline() {
         ref={trackRef}
         className="flex h-full items-center will-change-transform"
       >
-        {/* Intro panel */}
-        <div className="flex h-full w-screen flex-shrink-0 flex-col justify-center px-6 sm:px-16">
+        {/* Intro panel — kept just above the reveal threshold so the first
+            phase (Morning) begins entering almost immediately, no dead space.
+            paddingLeft matches the site's centered container gutter so the
+            heading lines up with the other sections. */}
+        <div
+          className="flex h-full w-[74vw] flex-shrink-0 flex-col justify-center pr-6 lg:w-[70vw]"
+          style={{ paddingLeft: "max(1.5rem, calc((100vw - 64rem) / 2))" }}
+        >
           <FlowHeader />
         </div>
 
@@ -154,16 +218,16 @@ export default function FlowTimeline() {
             <div
               key={p.key}
               data-panel
-              className="relative flex h-full w-[92vw] flex-shrink-0 items-center gap-8 px-6 sm:w-[70vw] sm:px-12 lg:w-[58vw]"
+              className="relative flex h-full w-[76vw] flex-shrink-0 items-center gap-8 px-8 sm:w-[70vw] sm:px-12 lg:w-[58vw]"
             >
               {/* Pulse divider between phases */}
               {i > 0 && <PulseDivider />}
 
-              <div className="grid w-full items-center gap-10 md:grid-cols-2">
+              <div className="grid w-full items-center gap-8 lg:grid-cols-2 lg:gap-10">
                 <div data-reveal>
                   <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
                 </div>
-                <div data-reveal className="flex justify-center md:justify-end">
+                <div data-reveal className="flex justify-center lg:justify-end">
                   <Mock />
                 </div>
               </div>
@@ -172,40 +236,95 @@ export default function FlowTimeline() {
         })}
 
         {/* Tail spacing */}
-        <div className="h-full w-[10vw] flex-shrink-0" />
+        <div className="h-full w-[5vw] flex-shrink-0" />
       </div>
 
-      {/* Progress tracker (pinned overlay) */}
-      <div className="pointer-events-none absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-surface/70 px-4 py-2.5 backdrop-blur-xl">
-        {PHASES.map((p, i) => (
-          <div key={p.key} className="flex items-center gap-2">
-            <span
-              className={`h-1.5 rounded-full transition-all duration-500 ${
-                i === active
-                  ? "w-7 bg-accent"
-                  : i < active
-                  ? "w-1.5 bg-accent/40"
-                  : "w-1.5 bg-text-muted/30"
-              }`}
-            />
-            <span
-              className={`text-[11px] transition-colors duration-500 ${
-                i === active ? "text-text-primary" : "text-text-muted"
-              }`}
-            >
-              {p.title}
-            </span>
-          </div>
-        ))}
-      </div>
+      <PhaseTracker active={active} onJump={jumpToPhase} />
     </section>
   );
 }
 
-function FlowHeader() {
+/**
+ * "Day timeline" tracker — a prominent, animated time + phase readout above a
+ * dot stepper whose connectors fill as you advance through the day.
+ */
+function PhaseTracker({
+  active,
+  onJump,
+}: {
+  active: number;
+  onJump: (i: number) => void;
+}) {
+  const current = PHASES[active];
+  return (
+    <div className="pointer-events-none absolute bottom-7 left-1/2 z-10 w-[min(92vw,340px)] -translate-x-1/2">
+      <div className="rounded-2xl border border-border bg-surface/70 px-6 py-4 backdrop-blur-xl">
+        {/* Active phase readout */}
+        <div className="mb-3 flex items-center justify-center gap-2.5 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current.key}
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -12, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center gap-2.5"
+            >
+              <span className="font-display text-sm tabular-nums text-accent">
+                {current.time}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-text-muted/50" />
+              <span className="font-display text-sm font-medium text-text-primary">
+                {current.title}
+              </span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Dot stepper — dots are clickable to jump to a phase */}
+        <div className="pointer-events-auto flex items-center">
+          {PHASES.map((p, i) => (
+            <Fragment key={p.key}>
+              {i > 0 && (
+                <div className="relative mx-1.5 h-px flex-1 bg-border">
+                  <div
+                    className="absolute inset-0 origin-left bg-accent transition-transform duration-500 ease-out"
+                    style={{ transform: `scaleX(${i <= active ? 1 : 0})` }}
+                  />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => onJump(i)}
+                aria-label={`Jump to ${p.title}`}
+                aria-current={i === active ? "step" : undefined}
+                className="group relative flex h-6 w-6 items-center justify-center"
+              >
+                {i === active && (
+                  <span className="absolute h-3.5 w-3.5 rounded-full bg-accent/25 animate-heartbeat" />
+                )}
+                <span
+                  className={`h-2.5 w-2.5 rounded-full transition-all duration-500 group-hover:scale-125 ${
+                    i === active
+                      ? "bg-accent"
+                      : i < active
+                      ? "bg-accent/50 group-hover:bg-accent/80"
+                      : "bg-text-muted/30 group-hover:bg-text-muted/60"
+                  }`}
+                />
+              </button>
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlowHeader({ stacked = false }: { stacked?: boolean }) {
   return (
     <div className="max-w-xl">
-      <p className="mb-5 flex items-center gap-3 text-sm font-medium uppercase tracking-[0.2em] text-accent">
+      <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
         <span className="h-px w-8 bg-accent/50" />
         A day in Cadence
       </p>
@@ -214,12 +333,14 @@ function FlowHeader() {
         <br />
         <span className="text-accent">flow.</span>
       </h2>
-      <p className="mt-6 text-base text-text-muted sm:text-lg">
-        Scroll through a full workday — from first light to shipped. Every phase
-        moves to the same beat.
+      <p className="mt-5 text-base text-text-muted sm:mt-6 sm:text-lg">
+        A full workday — from first light to shipped. Every phase moves to the
+        same beat.
       </p>
       <p className="mt-4 text-xs text-text-muted/70">
-        ↓ keep scrolling — the day moves sideways
+        {stacked
+          ? "↓ scroll on — one phase at a time"
+          : "↓ keep scrolling — the day unfolds sideways"}
       </p>
     </div>
   );

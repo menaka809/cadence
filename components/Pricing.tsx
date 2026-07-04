@@ -50,19 +50,26 @@ const PLANS: Plan[] = [
   },
 ];
 
+// Highlight the "Most popular" plan (Pro) by default.
+const DEFAULT_SELECTED = Math.max(
+  0,
+  PLANS.findIndex((p) => p.featured)
+);
+
 export default function Pricing() {
   const [annual, setAnnual] = useState(false);
+  const [selected, setSelected] = useState(DEFAULT_SELECTED);
   const { scrollTo } = useLenis();
 
   return (
-    <section id="pricing" className="relative px-6 py-28 md:py-36">
+    <section id="pricing" className="relative px-5 py-20 sm:px-6 sm:py-28 md:py-36">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-12 flex flex-col items-center text-center">
-          <p className="mb-5 flex items-center gap-3 text-sm font-medium uppercase tracking-[0.2em] text-accent">
+        <div className="mb-10 flex flex-col items-center text-center sm:mb-12">
+          <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
             <span className="h-px w-8 bg-accent/50" />
             Pricing
           </p>
-          <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight text-text-primary sm:text-5xl">
+          <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight text-text-primary sm:text-4xl md:text-5xl">
             Priced to keep pace.
           </h2>
 
@@ -80,7 +87,6 @@ export default function Pricing() {
               aria-checked={annual}
               onClick={() => setAnnual((v) => !v)}
               className="relative h-7 w-13 rounded-full border border-border bg-surface p-1 transition-colors"
-              style={{ width: "3.25rem" }}
             >
               <motion.span
                 layout
@@ -106,9 +112,20 @@ export default function Pricing() {
         <div className="grid gap-5 md:grid-cols-3">
           {PLANS.map((plan, i) => {
             const price = annual ? plan.annual : plan.monthly;
+            const isSelected = selected === i;
             return (
               <motion.div
                 key={plan.name}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                onClick={() => setSelected(i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelected(i);
+                  }
+                }}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
@@ -117,10 +134,10 @@ export default function Pricing() {
                   delay: i * 0.09,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className={`relative flex flex-col rounded-2xl border p-7 ${
-                  plan.featured
+                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-accent/50 sm:p-7 ${
+                  isSelected
                     ? "border-accent/40 bg-surface"
-                    : "border-border bg-surface/40"
+                    : "border-border bg-surface/40 hover:border-text-muted/30"
                 }`}
               >
                 {plan.featured && (
@@ -149,9 +166,13 @@ export default function Pricing() {
                 </span>
 
                 <button
-                  onClick={() => scrollTo("#waitlist", { offset: -40 })}
-                  className={`mt-7 rounded-full px-5 py-3 text-sm font-medium transition-transform hover:scale-[1.02] active:scale-95 ${
-                    plan.featured
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelected(i);
+                    scrollTo("#waitlist", { offset: -40 });
+                  }}
+                  className={`mt-7 rounded-full px-5 py-3 text-sm font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
+                    isSelected
                       ? "bg-accent text-bg"
                       : "border border-border bg-bg/40 text-text-primary hover:border-text-muted/40"
                   }`}

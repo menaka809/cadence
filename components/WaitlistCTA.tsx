@@ -8,7 +8,10 @@ import { Check, ArrowRight, Loader2 } from "lucide-react";
 import TempoBar from "./TempoBar";
 
 const schema = z.object({
-  email: z.string().min(1, "Enter your email").email("That doesn't look right"),
+  email: z
+    .string()
+    .min(1, "Enter your email")
+    .pipe(z.email("That doesn't look right")),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -31,23 +34,23 @@ export default function WaitlistCTA() {
   };
 
   return (
-    <section id="waitlist" className="relative px-6 py-32 md:py-44">
+    <section id="waitlist" className="relative px-5 py-24 sm:px-6 sm:py-32 md:py-44">
       <div className="mx-auto max-w-3xl">
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/50 px-6 py-16 text-center sm:px-14">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/50 px-5 py-12 text-center sm:px-14 sm:py-16">
           {/* Ambient accent */}
           <div className="pointer-events-none absolute inset-0 -z-10">
             <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 rounded-full bg-accent/[0.08] blur-[100px]" />
             <div className="absolute inset-0 noise-overlay opacity-50" />
           </div>
 
-          <div className="mb-8 flex justify-center">
-            <TempoBar bars={7} className="h-8 gap-[4px]" />
+          <div className="mb-6 flex justify-center sm:mb-8">
+            <TempoBar bars={7} className="h-7 gap-[4px] sm:h-8" />
           </div>
 
-          <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight text-text-primary sm:text-5xl">
+          <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight text-text-primary sm:text-4xl md:text-5xl">
             Find your cadence.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-base text-text-muted">
+          <p className="mx-auto mt-4 max-w-md text-sm text-text-muted sm:text-base">
             Join the waitlist and be first to work in rhythm. No spam — just one
             note when we open the doors.
           </p>

@@ -19,9 +19,9 @@ const COLUMNS = [
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-border px-6 pb-10 pt-16">
+    <footer className="relative border-t border-border px-5 pb-10 pt-14 sm:px-6 sm:pt-16">
       <div className="mx-auto max-w-5xl">
-        <div className="flex flex-col gap-12 md:flex-row md:justify-between">
+        <div className="flex flex-col gap-10 md:flex-row md:justify-between md:gap-12">
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5">
               <TempoBar bars={4} className="h-4 w-5" />

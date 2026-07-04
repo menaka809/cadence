@@ -58,10 +58,10 @@ export default function Hero() {
           <span>Now in private beta</span>
         </motion.div>
 
-        <h1 className="font-display text-[13vw] font-semibold leading-[0.92] tracking-tight text-text-primary sm:text-7xl md:text-8xl lg:text-[7.5rem]">
+        <h1 className="font-display text-[clamp(2.25rem,10.5vw,7.5rem)] font-semibold leading-[0.95] tracking-tight text-text-primary">
           {[LINE_ONE, LINE_TWO].map((line, li) => (
             <span key={li} className="block overflow-hidden pb-[0.05em]">
-              <span className="flex justify-center gap-[0.25em]">
+              <span className="flex justify-center gap-[0.22em]">
                 {line.map((w, wi) => (
                   <span key={`${li}-${wi}`} className="inline-block overflow-hidden">
                     <motion.span
@@ -106,15 +106,20 @@ export default function Hero() {
         </motion.div>
       </motion.div>
 
-      {/* Continuous tempo bar visual */}
+      {/* Continuous tempo bar visual — clipped to the viewport on small
+          screens so the 48 bars never force horizontal overflow. */}
       <motion.div
         variants={fade}
         initial="hidden"
         animate="show"
         transition={{ delay: 1.1 }}
-        className="mt-16 flex h-16 items-end justify-center"
+        className="mt-12 flex h-12 w-full max-w-2xl items-end justify-center overflow-hidden px-4 sm:mt-16 sm:h-16"
       >
-        <TempoBar bars={48} className="h-16 gap-[4px]" barClassName="w-[3px]" />
+        <TempoBar
+          bars={48}
+          className="h-12 gap-[3px] sm:h-16 sm:gap-[4px]"
+          barClassName="w-[3px]"
+        />
       </motion.div>
 
       <motion.button
