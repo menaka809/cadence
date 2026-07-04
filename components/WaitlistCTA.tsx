@@ -1,0 +1,149 @@
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ArrowRight, Loader2 } from "lucide-react";
+import TempoBar from "./TempoBar";
+
+const schema = z.object({
+  email: z.string().min(1, "Enter your email").email("That doesn't look right"),
+});
+
+type FormValues = z.infer<typeof schema>;
+
+export default function WaitlistCTA() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isSubmitSuccessful },
+    reset,
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+  });
+
+  const onSubmit = async (_data: FormValues) => {
+    // Simulate a network request to the waitlist endpoint.
+    await new Promise((r) => setTimeout(r, 900));
+    reset(undefined, { keepIsSubmitted: true, keepValues: true });
+  };
+
+  return (
+    <section id="waitlist" className="relative px-6 py-32 md:py-44">
+      <div className="mx-auto max-w-3xl">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/50 px-6 py-16 text-center sm:px-14">
+          {/* Ambient accent */}
+          <div className="pointer-events-none absolute inset-0 -z-10">
+            <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 rounded-full bg-accent/[0.08] blur-[100px]" />
+            <div className="absolute inset-0 noise-overlay opacity-50" />
+          </div>
+
+          <div className="mb-8 flex justify-center">
+            <TempoBar bars={7} className="h-8 gap-[4px]" />
+          </div>
+
+          <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight text-text-primary sm:text-5xl">
+            Find your cadence.
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-base text-text-muted">
+            Join the waitlist and be first to work in rhythm. No spam — just one
+            note when we open the doors.
+          </p>
+
+          <div className="mx-auto mt-10 max-w-md">
+            <AnimatePresence mode="wait" initial={false}>
+              {isSubmitSuccessful ? (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 14,
+                      delay: 0.05,
+                    }}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-accent"
+                  >
+                    <motion.span
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                    >
+                      <Check className="h-7 w-7 text-bg" strokeWidth={3} />
+                    </motion.span>
+                  </motion.span>
+                  <p className="font-display text-lg font-medium text-text-primary">
+                    You&rsquo;re on the list.
+                  </p>
+                  <p className="text-sm text-text-muted">
+                    We&rsquo;ll be in touch when the beat drops.
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.form
+                  key="form"
+                  onSubmit={handleSubmit(onSubmit)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  noValidate
+                  className="text-left"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="flex-1">
+                      <input
+                        {...register("email")}
+                        type="email"
+                        placeholder="you@company.com"
+                        aria-label="Email address"
+                        aria-invalid={!!errors.email}
+                        className={`w-full rounded-full border bg-bg/60 px-5 py-3.5 text-sm text-text-primary placeholder:text-text-muted/60 outline-none transition-colors focus:border-accent/60 ${
+                          errors.email ? "border-red-500/60" : "border-border"
+                        }`}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-70"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          Join
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <AnimatePresence>
+                    {errors.email && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="mt-2 pl-5 text-xs text-red-400"
+                      >
+                        {errors.email.message}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
