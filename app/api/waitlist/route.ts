@@ -51,6 +51,43 @@ async function sendEmail(
   }
 }
 
+// Resend rejects properties it doesn't know, so fall back rather than lose the contact.
+async function storeContact(apiKey: string, email: string) {
+  const contact = { email, unsubscribed: false };
+  const post = (payload: Record<string, unknown>) =>
+    fetch(`${RESEND}/contacts`, {
+      method: "POST",
+      headers: authHeaders(apiKey),
+      body: JSON.stringify(payload),
+    });
+
+  try {
+    const enriched = await post({
+      ...contact,
+      properties: {
+        source: "cadence-waitlist",
+        signed_up_at: new Date().toISOString(),
+      },
+    });
+    if (enriched.ok) return true;
+
+    console.warn(
+      "[waitlist] properties rejected, retrying without them",
+      enriched.status,
+      await enriched.text()
+    );
+
+    const plain = await post(contact);
+    if (plain.ok) return true;
+
+    console.error("[waitlist] contact store failed", plain.status, await plain.text());
+    return false;
+  } catch (err) {
+    console.error("[waitlist] contact store threw", err);
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
@@ -90,25 +127,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, stored: false, welcomed: false });
   }
 
-  // Storing the contact is the waitlist itself; Resend de-duplicates by email.
-  let stored = false;
-  try {
-    const res = await fetch(`${RESEND}/contacts`, {
-      method: "POST",
-      headers: authHeaders(apiKey),
-      body: JSON.stringify({ email, unsubscribed: false }),
-    });
-    stored = res.ok;
-    if (!res.ok) {
-      console.error(
-        "[waitlist] contact store failed",
-        res.status,
-        await res.text()
-      );
-    }
-  } catch (err) {
-    console.error("[waitlist] contact store threw", err);
-  }
+  const stored = await storeContact(apiKey, email);
 
   const notified = await sendEmail(
     apiKey,
