@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,17 +22,38 @@ export default function WaitlistCTA() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     mode: "onSubmit",
   });
 
-  const onSubmit = async (_data: FormValues) => {
-    // Simulate a network request to the waitlist endpoint.
-    await new Promise((r) => setTimeout(r, 900));
-    reset(undefined, { keepIsSubmitted: true, keepValues: true });
+  const [sent, setSent] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const onSubmit = async (data: FormValues) => {
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.ok === false) {
+        setSubmitError(
+          json?.error || "Something went wrong. Please try again."
+        );
+        return;
+      }
+      setSent(true);
+      reset();
+    } catch {
+      setSubmitError(
+        "Network error — please check your connection and try again."
+      );
+    }
   };
 
   return (
@@ -58,7 +80,7 @@ export default function WaitlistCTA() {
 
           <div className="mx-auto mt-10 max-w-md">
             <AnimatePresence mode="wait" initial={false}>
-              {isSubmitSuccessful ? (
+              {sent ? (
                 <motion.div
                   key="success"
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -133,14 +155,14 @@ export default function WaitlistCTA() {
                     </Magnetic>
                   </div>
                   <AnimatePresence>
-                    {errors.email && (
+                    {(errors.email || submitError) && (
                       <motion.p
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         className="mt-2 pl-5 text-xs text-red-400"
                       >
-                        {errors.email.message}
+                        {errors.email?.message ?? submitError}
                       </motion.p>
                     )}
                   </AnimatePresence>
