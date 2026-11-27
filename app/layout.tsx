@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
-import SmoothScroll from "@/components/SmoothScroll";
+import Providers from "@/components/Providers";
 import ScrollProgress from "@/components/ScrollProgress";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -12,17 +14,46 @@ const inter = Inter({
   display: "swap",
 });
 
+// Self-hosted Clash Display (fetched by scripts/fetch-fonts.mjs at build time).
+// next/font generates a size-matched fallback so the swap doesn't shift text.
+const clash = localFont({
+  variable: "--font-clash",
+  display: "swap",
+  src: [
+    { path: "./fonts/clash-display/ClashDisplay-400.woff2", weight: "400" },
+    { path: "./fonts/clash-display/ClashDisplay-500.woff2", weight: "500" },
+    { path: "./fonts/clash-display/ClashDisplay-600.woff2", weight: "600" },
+  ],
+  fallback: ["system-ui", "sans-serif"],
+});
+
+const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+
 export const metadata: Metadata = {
-  title: "Cadence — Work in rhythm, not in chaos",
-  description:
-    "Cadence is a focus and deep-work app that turns your workday into a rhythm, not a checklist. Tempo Blocks, flow-state detection, and silence that actually stays silent.",
-  metadataBase: new URL("https://cadence.app"),
-  openGraph: {
-    title: "Cadence — Work in rhythm, not in chaos",
-    description:
-      "A focus and deep-work app that turns your workday into a rhythm, not a checklist.",
-    type: "website",
+  metadataBase: siteUrl(),
+  title: {
+    default: TITLE,
+    template: `%s — ${SITE_NAME}`,
   },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B0B0D",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -31,30 +62,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={inter.variable}
-      style={{ ["--font-clash" as string]: '"Clash Display"' }}
-    >
-      <head>
-        {/* Clash Display via Fontshare — not available on Google Fonts */}
-        <link
-          rel="preconnect"
-          href="https://api.fontshare.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500,400&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${inter.variable} ${clash.variable}`}>
       <body className="antialiased">
-        <SmoothScroll>
+        <a
+          href="#main"
+          className="sr-only rounded-full bg-accent px-5 py-3 text-sm font-semibold text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100]"
+        >
+          Skip to content
+        </a>
+        <Providers>
           <ScrollProgress />
           <Navbar />
-          <main>{children}</main>
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
           <Footer />
-        </SmoothScroll>
+        </Providers>
       </body>
     </html>
   );

@@ -82,8 +82,13 @@ export default function FlowTimeline() {
   // Choose the layout from viewport size + motion preference, and keep it in
   // sync on resize / orientation change. The scroll-jack needs both enough
   // width and enough height, so landscape phones fall back to the stack.
+  // From lg each phase is a short side-by-side row (600px tall is enough);
+  // between md and lg the label stacks above the mockup, which needs a tall
+  // screen (tablets in portrait), so short mid-size windows use the stack.
   useEffect(() => {
-    const sizeMq = window.matchMedia("(min-width: 768px) and (min-height: 600px)");
+    const sizeMq = window.matchMedia(
+      "(min-width: 1024px) and (min-height: 600px), (min-width: 768px) and (min-height: 900px)"
+    );
     const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () =>
       setMode(sizeMq.matches && !motionMq.matches ? "horizontal" : "stacked");
@@ -186,84 +191,113 @@ export default function FlowTimeline() {
   }, [mode]);
 
   // ---- Mobile / short / reduced-motion: a clean vertical stack ----
+  // On phones the cards hang off a time rail so the stack still reads as one
+  // continuous day; from md up they sit in a two-column grid.
   if (mode === "stacked") {
     return (
-      <section id="flow" className="px-5 py-20 sm:px-6 sm:py-28">
-        <FlowHeader stacked />
-        <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:mt-14 sm:gap-8 md:grid-cols-2">
-          {PHASES.map((p) => (
-            <div
-              key={p.key}
-              className="rounded-2xl border border-border bg-surface/40 p-6 sm:p-8"
-            >
-              <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
-              <div className="mt-7 flex justify-center sm:mt-8">
-                <p.Mock />
-              </div>
-            </div>
-          ))}
+      <section id="flow" tabIndex={-1} className="px-5 py-20 sm:px-6 sm:py-28">
+        <div className="mx-auto max-w-5xl">
+          <FlowHeader />
         </div>
+        <ol className="relative mx-auto mt-10 grid max-w-5xl gap-5 sm:mt-14 sm:gap-8 md:grid-cols-2">
+          {/* Time rail (phones only) */}
+          <span
+            aria-hidden
+            className="absolute bottom-10 left-1.25 top-10 w-px bg-linear-to-b from-accent/60 via-border to-border md:hidden"
+          />
+          {PHASES.map((p) => (
+            <li key={p.key} className="relative pl-6 md:pl-0">
+              <span
+                aria-hidden
+                className="absolute left-0 top-7.5 h-2.75 w-2.75 rounded-full border-2 border-bg bg-accent md:hidden"
+              />
+              <div className="rounded-2xl border border-border bg-surface/40 p-5 sm:p-8">
+                <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
+                <div className="mt-6 flex justify-center sm:mt-8">
+                  <p.Mock />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
     );
   }
 
+  // The wrapper div matters: pinning makes GSAP move <section> into a
+  // "pin-spacer" element. React only ever removes this wrapper (which stays
+  // where React put it), so leaving the page or switching layouts can't hit
+  // a "removeChild: not a child of this node" crash.
   return (
-    <section
-      ref={sectionRef}
-      id="flow"
-      className="relative h-screen overflow-hidden"
-    >
-      {/* Horizontal track */}
-      <div
-        ref={trackRef}
-        className="flex h-full items-center will-change-transform"
+    <div>
+      <section
+        ref={sectionRef}
+        id="flow"
+        tabIndex={-1}
+        className="relative h-screen overflow-hidden"
       >
-        {/* Intro panel — kept just above the reveal threshold so the first
-            phase (Morning) begins entering almost immediately, no dead space.
-            paddingLeft matches the site's centered container gutter so the
-            heading lines up with the other sections. */}
+        {/* Horizontal track */}
         <div
-          data-intro
-          className="flex h-full w-[74vw] flex-shrink-0 flex-col justify-center pr-6 lg:w-[70vw]"
-          style={{ paddingLeft: "max(1.5rem, calc((100vw - 64rem) / 2))" }}
+          ref={trackRef}
+          // The intro and every panel are centred in one "stage" above the
+          // phase tracker. The stage is at most 42rem tall (48rem below lg),
+          // so on tall screens the scene doesn't drift down and the gap above
+          // the section stays close to the gaps between other sections. The
+          // tracker sits right under the stage (see PhaseTracker). Below lg,
+          // phases are taller (label above mockup), so the stage is taller and
+          // starts below the navbar.
+          className="flex h-full items-center pt-24 pb-[max(7rem,calc(100vh-48rem))] will-change-transform lg:pt-0 lg:pb-[max(7rem,calc(100vh-42rem))]"
         >
-          <FlowHeader />
-        </div>
+          {/* Intro panel — kept just above the reveal threshold so the first
+              phase (Morning) begins entering almost immediately, no dead space.
+              paddingLeft matches the site's centered container gutter so the
+              heading lines up with the other sections. */}
+          <div
+            data-intro
+            className="flex h-full w-[74vw] flex-shrink-0 flex-col justify-center pr-6 lg:w-[70vw]"
+            style={{ paddingLeft: "max(1.5rem, calc((100vw - 64rem) / 2))" }}
+          >
+            <FlowHeader />
+          </div>
 
-        {PHASES.map((p, i) => {
-          const Mock = p.Mock;
-          return (
-            <div
-              key={p.key}
-              data-panel
-              className="relative flex h-full w-[76vw] flex-shrink-0 items-center gap-8 px-8 sm:w-[70vw] sm:px-12 lg:w-[58vw]"
-            >
-              {/* Pulse divider between phases */}
-              {i > 0 && <PulseDivider />}
+          {PHASES.map((p, i) => {
+            const Mock = p.Mock;
+            return (
+              // From lg the label and mockup sit side by side, which needs
+              // ~57rem (20rem label + 3.5rem gap + 27rem mockup + padding).
+              // Never go narrower, or phases spill into their neighbours.
+              <div
+                key={p.key}
+                data-panel
+                className="relative flex h-full w-[76vw] flex-shrink-0 items-center gap-8 px-8 sm:w-[70vw] sm:px-12 lg:w-[max(58vw,57rem)]"
+              >
+                {/* Pulse divider between phases */}
+                {i > 0 && <PulseDivider />}
 
-              {/* Centered label + mock group so they sit close together
-                  instead of being pushed to opposite edges of a wide panel. */}
-              <div className="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
-                <div data-reveal className="w-full lg:w-auto lg:shrink-0">
-                  <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
-                </div>
-                <div
-                  data-reveal
-                  className="flex w-full justify-center lg:w-[27rem] lg:shrink-0"
-                >
-                  <Mock />
+                {/* Centered label + mock group so they sit close together
+                    instead of being pushed to opposite edges of a wide panel. */}
+                <div className="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
+                  <div data-reveal className="w-full lg:w-auto lg:shrink-0">
+                    <PhaseLabel time={p.time} title={p.title} copy={p.copy} />
+                  </div>
+                  <div
+                    data-reveal
+                    className="flex w-full justify-center lg:w-[27rem] lg:shrink-0"
+                  >
+                    <Mock />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* Tail spacing */}
-        <div className="h-full w-[5vw] flex-shrink-0" />
-      </div>
+          {/* Tail spacing */}
+          <div className="h-full w-[5vw] flex-shrink-0" />
+        </div>
 
-      <PhaseTracker active={active} onJump={jumpToPhase} />
-    </section>
+        <PhaseTracker active={active} onJump={jumpToPhase} />
+      </section>
+    </div>
   );
 }
 
@@ -281,7 +315,8 @@ function PhaseTracker({
   const isIntro = active < 0;
   const current = PHASES[active];
   return (
-    <div className="pointer-events-none absolute bottom-7 left-1/2 z-10 w-[min(92vw,340px)] -translate-x-1/2">
+    // Top = bottom of the stage (matches the track padding in FlowTimeline).
+    <div className="pointer-events-none absolute left-1/2 top-[min(calc(100vh-7rem),48rem)] z-10 lg:top-[min(calc(100vh-7rem),42rem)] w-[min(92vw,340px)] -translate-x-1/2">
       <div className="rounded-2xl border border-border bg-surface/70 px-6 py-4 backdrop-blur-xl">
         {/* Active phase readout (intro state until the first phase centers) */}
         <div className="mb-3 flex items-center justify-center gap-2.5 overflow-hidden">
@@ -337,7 +372,7 @@ function PhaseTracker({
                 onClick={() => onJump(i)}
                 aria-label={`Jump to ${p.title}`}
                 aria-current={i === active ? "step" : undefined}
-                className="group relative flex h-6 w-6 items-center justify-center"
+                className="group relative flex h-6 w-6 items-center justify-center rounded-full before:absolute before:-inset-2.5 before:content-['']"
               >
                 {i === active && (
                   <span className="absolute h-3.5 w-3.5 rounded-full bg-accent/25 animate-heartbeat" />
@@ -360,7 +395,9 @@ function PhaseTracker({
   );
 }
 
-function FlowHeader({ stacked = false }: { stacked?: boolean }) {
+// The bottom tracker ("A day in Cadence →") already signals the sideways
+// scroll, so the header carries no separate "keep scrolling" hint.
+function FlowHeader() {
   return (
     <div className="max-w-xl">
       <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
@@ -375,11 +412,6 @@ function FlowHeader({ stacked = false }: { stacked?: boolean }) {
       <p className="mt-5 text-base text-text-muted sm:mt-6 sm:text-lg">
         A full workday — from first light to shipped. Every phase moves to the
         same beat.
-      </p>
-      <p className="mt-4 text-xs text-text-muted/70">
-        {stacked
-          ? "↓ scroll on — one phase at a time"
-          : "↓ keep scrolling — the day unfolds sideways"}
       </p>
     </div>
   );
