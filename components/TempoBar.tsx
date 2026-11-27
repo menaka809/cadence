@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * A live "tempo bar" — a row of bars that pulse continuously on a staggered
  * delay to read like a metronome / audio waveform. Pure CSS animation
@@ -26,7 +24,8 @@ export default function TempoBar({
           className={`animate-tempo block w-[3px] rounded-full bg-accent ${barClassName}`}
           style={{
             height: "100%",
-            animationDelay: `${(i % bars) * 0.12}s`,
+            // Negative delay: every bar starts mid-beat on the first frame.
+            animationDelay: `-${(i % bars) * 0.12}s`,
             animationDuration: `${1.1 + (i % 3) * 0.25}s`,
           }}
         />
