@@ -26,7 +26,7 @@ export default function RollingNumber({
     <span
       className={`inline-flex tabular-nums ${className}`}
       style={{ ["--roll-h" as string]: "1.25em" }}
-      aria-label={String(value)}
+      aria-hidden
     >
       {digits.map((d, i) => {
         const n = Number(d);

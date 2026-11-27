@@ -5,6 +5,7 @@ import {
   motion,
   useMotionTemplate,
   useMotionValue,
+  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import { Timer, Waves, VolumeX, type LucideIcon } from "lucide-react";
@@ -33,7 +34,7 @@ const FEATURES: {
 
 export default function Features() {
   return (
-    <section id="features" className="relative px-5 py-20 sm:px-6 sm:py-28 md:py-36">
+    <section id="features" tabIndex={-1} className="relative px-5 py-20 sm:px-6 sm:py-28">
       <div className="mx-auto max-w-5xl">
         <div className="mb-10 max-w-2xl sm:mb-16">
           <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
@@ -63,6 +64,8 @@ function MagneticCard({
   index: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Reduced motion: keep the hover glow, drop the 3D tilt.
+  const reduced = useReducedMotion();
 
   // Raw pointer position, normalized to [-0.5, 0.5] within the card.
   const px = useMotionValue(0);
@@ -82,6 +85,7 @@ function MagneticCard({
     const ny = (e.clientY - r.top) / r.height - 0.5;
     px.set(e.clientX - r.left);
     py.set(e.clientY - r.top);
+    if (reduced) return;
     rotateY.set(nx * 14); // tilt toward cursor horizontally
     rotateX.set(-ny * 14); // and vertically
   };
@@ -121,7 +125,7 @@ function MagneticCard({
           className="relative flex flex-col"
         >
           <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-bg/60 text-accent">
-            <Icon className="h-5 w-5" />
+            <Icon className="h-5 w-5" aria-hidden />
           </span>
           <h3 className="font-display text-xl font-semibold text-text-primary">
             {feature.title}

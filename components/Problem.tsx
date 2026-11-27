@@ -24,20 +24,31 @@ export default function Problem() {
     }
 
     const ctx = gsap.context(() => {
-      gsap.set(words, { opacity: 0.08, filter: "blur(8px)", y: 10 });
+      // Words stay fully readable until the block is about to scroll into
+      // view; only then are they dimmed and handed to the scrubbed reveal.
+      // (Also avoids dimming visible text the moment JavaScript loads.)
+      const build = () => {
+        gsap.set(words, { opacity: 0.08, filter: "blur(8px)", y: 10 });
+        gsap.to(words, {
+          opacity: 1,
+          filter: "blur(0px)",
+          y: 0,
+          ease: "none",
+          stagger: 0.5,
+          scrollTrigger: {
+            trigger: root,
+            start: "top 75%",
+            end: "bottom 60%",
+            scrub: 0.6,
+          },
+        });
+      };
 
-      gsap.to(words, {
-        opacity: 1,
-        filter: "blur(0px)",
-        y: 0,
-        ease: "none",
-        stagger: 0.5,
-        scrollTrigger: {
-          trigger: root,
-          start: "top 75%",
-          end: "bottom 60%",
-          scrub: 0.6,
-        },
+      ScrollTrigger.create({
+        trigger: root,
+        start: "top bottom", // the label line, which sits above the text
+        once: true,
+        onEnter: build,
       });
     }, root);
 
@@ -47,7 +58,7 @@ export default function Problem() {
   const highlight = new Set(["Cadence", "beat", "focus"]);
 
   return (
-    <section id="problem" className="relative px-5 py-24 sm:px-6 sm:py-32 md:py-44">
+    <section id="problem" tabIndex={-1} className="relative px-5 py-24 sm:px-6 sm:py-32 md:pt-44 md:pb-8">
       <div ref={rootRef} className="mx-auto max-w-4xl">
         <p className="mb-8 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-10 sm:text-sm">
           <span className="h-px w-8 bg-accent/50" />

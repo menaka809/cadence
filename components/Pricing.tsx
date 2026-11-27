@@ -61,8 +61,11 @@ export default function Pricing() {
   const [selected, setSelected] = useState(DEFAULT_SELECTED);
   const { scrollTo } = useLenis();
 
+  const label = (on: boolean) =>
+    `min-h-11 px-1 text-sm transition-colors ${on ? "text-text-primary" : "text-text-muted hover:text-text-primary"}`;
+
   return (
-    <section id="pricing" className="relative px-5 py-20 sm:px-6 sm:py-28 md:py-36">
+    <section id="pricing" tabIndex={-1} className="relative px-5 py-20 sm:px-6 sm:py-28">
       <div className="mx-auto max-w-5xl">
         <div className="mb-10 flex flex-col items-center text-center sm:mb-12">
           <p className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-accent sm:mb-5 sm:text-sm">
@@ -73,59 +76,60 @@ export default function Pricing() {
             Priced to keep pace.
           </h2>
 
-          {/* Toggle */}
-          <div className="mt-10 flex items-center gap-4">
-            <span
-              className={`text-sm transition-colors ${
-                !annual ? "text-text-primary" : "text-text-muted"
-              }`}
-            >
+          {/* Billing toggle: the switch plus clickable labels on both sides */}
+          <div className="mt-10 flex items-center gap-3">
+            <button type="button" onClick={() => setAnnual(false)} className={label(!annual)}>
               Monthly
-            </span>
+            </button>
             <button
+              type="button"
               role="switch"
               aria-checked={annual}
+              aria-label="Bill annually"
               onClick={() => setAnnual((v) => !v)}
-              className="relative h-7 w-13 rounded-full border border-border bg-surface p-1 transition-colors"
+              className="relative flex h-11 items-center"
             >
-              <motion.span
-                layout
-                transition={{ type: "spring", stiffness: 500, damping: 32 }}
-                className={`block h-5 w-5 rounded-full bg-accent ${
-                  annual ? "ml-auto" : ""
-                }`}
-              />
+              <span className="flex h-7 w-13 items-center rounded-full border border-border bg-surface p-1 transition-colors">
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                  className={`block h-5 w-5 rounded-full bg-accent ${annual ? "ml-auto" : ""}`}
+                />
+              </span>
             </button>
-            <span
-              className={`flex items-center gap-2 text-sm transition-colors ${
-                annual ? "text-text-primary" : "text-text-muted"
-              }`}
+            <button
+              type="button"
+              onClick={() => setAnnual(true)}
+              className={`flex items-center gap-2 ${label(annual)}`}
             >
               Annual
               <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                 Save 20%
               </span>
-            </span>
+            </button>
           </div>
+          <p className="sr-only" aria-live="polite">
+            {annual ? "Showing annual prices" : "Showing monthly prices"}
+          </p>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
           {PLANS.map((plan, i) => {
             const price = annual ? plan.annual : plan.monthly;
             const isSelected = selected === i;
+            const spoken =
+              price === 0
+                ? "Free forever"
+                : `$${price} per month${annual ? `, billed $${price * 12} per year` : ""}`;
             return (
-              <motion.div
+              // Clicking anywhere on a card highlights it; the button inside is
+              // the one real control, so keyboard and screen-reader users get a
+              // single, clearly named action per plan.
+              <motion.article
                 key={plan.name}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
+                aria-labelledby={`plan-${plan.name}`}
                 onClick={() => setSelected(i)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelected(i);
-                  }
-                }}
+                onFocusCapture={() => setSelected(i)}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
@@ -134,7 +138,7 @@ export default function Pricing() {
                   delay: i * 0.09,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent/50 sm:p-7 ${
+                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 transition-all duration-300 sm:p-7 ${
                   isSelected
                     ? "z-10 border-accent/50 bg-surface shadow-[0_16px_50px_-16px_rgba(198,255,61,0.28)] md:scale-[1.025]"
                     : "border-border bg-surface/40 hover:border-text-muted/30"
@@ -146,32 +150,42 @@ export default function Pricing() {
                   </span>
                 )}
 
-                <h3 className="font-display text-lg font-semibold text-text-primary">
+                <h3
+                  id={`plan-${plan.name}`}
+                  className="font-display text-lg font-semibold text-text-primary"
+                >
                   {plan.name}
                 </h3>
                 <p className="mt-1 text-sm text-text-muted">{plan.blurb}</p>
 
-                <div className="mt-6 flex items-baseline gap-1">
-                  <span className="inline-flex items-baseline font-display text-5xl font-semibold leading-none text-text-primary">
+                <p className="mt-6 flex items-baseline gap-1">
+                  <span className="sr-only">{spoken}</span>
+                  <span
+                    aria-hidden
+                    className="inline-flex items-baseline font-display text-5xl font-semibold leading-none text-text-primary"
+                  >
                     $
                     <RollingNumber value={price} />
                   </span>
-                  <span className="text-sm text-text-muted">
+                  <span aria-hidden className="text-sm text-text-muted">
                     {price === 0 ? "forever" : "/mo"}
                   </span>
-                </div>
+                </p>
                 {/* Always reserve this line so cards don't resize on toggle */}
-                <span className="mt-2 block h-4 text-xs text-text-muted">
+                <span aria-hidden className="mt-2 block h-4 text-xs text-text-muted">
                   {annual && price > 0 ? `billed $${price * 12}/year` : ""}
                 </span>
 
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelected(i);
                     scrollTo("#waitlist", { offset: -40 });
+                    document.getElementById("waitlist")?.focus({ preventScroll: true });
                   }}
-                  className={`mt-7 rounded-full px-5 py-3 text-sm font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
+                  aria-describedby={`plan-${plan.name}`}
+                  className={`mt-7 min-h-11 rounded-full px-5 py-3 text-sm font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
                     isSelected
                       ? "bg-accent text-bg"
                       : "border border-border bg-bg/40 text-text-primary hover:border-text-muted/40"
@@ -183,12 +197,12 @@ export default function Pricing() {
                 <ul className="mt-7 space-y-3 border-t border-border pt-6">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
                       <span className="text-text-muted">{f}</span>
                     </li>
                   ))}
                 </ul>
-              </motion.div>
+              </motion.article>
             );
           })}
         </div>
