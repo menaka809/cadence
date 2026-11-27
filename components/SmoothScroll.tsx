@@ -2,22 +2,37 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
-  useState,
+  type MouseEvent,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import Lenis from "lenis";
 import { gsap, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
 
+/** Room for the floating navbar when landing on a section. */
+const NAV_OFFSET = -80;
+
+type ScrollOptions = { offset?: number; immediate?: boolean };
+
 type LenisContextValue = {
-  /** Smoothly scroll to a target (selector or offset). Falls back to native. */
-  scrollTo: (target: string | number, options?: { offset?: number }) => void;
+  /** Smoothly scroll to a selector or a page offset. Falls back to native. */
+  scrollTo: (target: string | number, options?: ScrollOptions) => void;
+  /**
+   * Click handler for "/#section" links. On the home page it scrolls there
+   * smoothly and moves keyboard focus to the section; elsewhere it lets the
+   * link navigate normally.
+   */
+  onSectionLink: (href: string, after?: () => void) => (e: MouseEvent) => void;
 };
 
 const LenisContext = createContext<LenisContextValue>({
   scrollTo: () => {},
+  onSectionLink: () => () => {},
 });
 
 export const useLenis = () => useContext(LenisContext);
@@ -31,16 +46,13 @@ export const useLenis = () => useContext(LenisContext);
  */
 export default function SmoothScroll({ children }: { children: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
-  const [ready, setReady] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const reduced = prefersReducedMotion();
-
     // With reduced motion we skip smooth scrolling entirely, but still let
-    // ScrollTrigger drive scroll-linked reveals off the native scroller.
-    if (reduced) {
+    // ScrollTrigger work off the native scroller.
+    if (prefersReducedMotion()) {
       ScrollTrigger.refresh();
-      setReady(true);
       return () => {
         ScrollTrigger.getAll().forEach((t) => t.kill());
       };
@@ -63,14 +75,7 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     gsap.ticker.add(raf);
     gsap.ticker.lagSmoothing(0);
 
-    // Recalculate trigger positions once fonts/layout settle.
-    const refresh = () => ScrollTrigger.refresh();
-    const settle = window.setTimeout(refresh, 300);
-
-    setReady(true);
-
     return () => {
-      window.clearTimeout(settle);
       gsap.ticker.remove(raf);
       lenis.off("scroll", ScrollTrigger.update);
       lenis.destroy();
@@ -79,26 +84,69 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const scrollTo: LenisContextValue["scrollTo"] = (target, options) => {
+  const scrollTo = useCallback<LenisContextValue["scrollTo"]>((target, options) => {
+    // Resolve selectors to a page offset from the live layout. Lenis' own
+    // selector maths uses its cached position, which is stale right after a
+    // route change or a native hash jump.
+    let top: number;
+    if (typeof target === "number") {
+      top = target;
+    } else {
+      const el = document.querySelector(target);
+      if (!el) return;
+      top = el.getBoundingClientRect().top + window.scrollY + (options?.offset ?? 0);
+    }
+    top = Math.max(0, top);
+
     const lenis = lenisRef.current;
-    if (lenis) {
-      lenis.scrollTo(target, { offset: options?.offset ?? 0, duration: 1.2 });
+    if (lenis && !options?.immediate) {
+      lenis.scrollTo(top, { duration: 1.2 });
       return;
     }
-    // Reduced-motion / not-ready fallback.
-    if (typeof target === "string") {
-      const el = document.querySelector(target);
-      el?.scrollIntoView({ behavior: "auto", block: "start" });
-    } else if (typeof window !== "undefined") {
-      window.scrollTo({ top: target, behavior: "auto" });
-    }
-  };
+    // Instant jump (and the reduced-motion path). Lenis follows native scroll.
+    window.scrollTo({ top, behavior: "instant" });
+    lenis?.resize();
+  }, []);
 
-  return (
-    <LenisContext.Provider value={{ scrollTo }}>
-      {children}
-      {/* ready gates nothing visually; kept for potential entrance choreography */}
-      <span hidden data-scroll-ready={ready} />
-    </LenisContext.Provider>
+  const onSectionLink = useCallback<LenisContextValue["onSectionLink"]>(
+    (href, after) => (e) => {
+      after?.();
+      const hash = href.slice(href.indexOf("#"));
+      if (pathname !== "/" || !hash.startsWith("#")) return; // normal navigation
+      const el = document.querySelector<HTMLElement>(hash);
+      if (!el) return;
+      e.preventDefault();
+      scrollTo(hash, { offset: NAV_OFFSET });
+      // Move keyboard focus with the view, without a native scroll jump.
+      el.focus({ preventScroll: true });
+    },
+    [pathname, scrollTo]
   );
+
+  // Arriving at "/#pricing" (fresh load or from /privacy): wait for the
+  // pinned timeline to add its scroll distance, then land on the section.
+  useEffect(() => {
+    if (pathname !== "/" || !window.location.hash) return;
+    const hash = window.location.hash;
+    const id = window.setTimeout(() => {
+      ScrollTrigger.refresh();
+      if (document.querySelector(hash)) scrollTo(hash, { offset: NAV_OFFSET, immediate: true });
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [pathname, scrollTo]);
+
+  // Recalculate trigger positions once web fonts have settled.
+  useEffect(() => {
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) ScrollTrigger.refresh();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const value = useMemo(() => ({ scrollTo, onSectionLink }), [scrollTo, onSectionLink]);
+
+  return <LenisContext.Provider value={value}>{children}</LenisContext.Provider>;
 }
